@@ -1,37 +1,38 @@
 package main
 
 import (
-    "fmt"
-    "flag"
-    "locate"
+	"flag"
+	"fmt"
+	"locate"
+	"runtime"
 )
 
 type Record struct {
-    Name string
-    Path string
-    IsDir bool
+	Name  string
+	Path  string
+	IsDir bool
 }
 
 var (
-    patternArg = flag.String("pattern", "", "")
-    idxFileArg = flag.String("idx", "./index.db", "")
+	patternArg = flag.String("pattern", "", "")
+	idxFileArg = flag.String("idx", "./index.db", "")
 )
 
 func main() {
-    flag.Parse()
-    if *patternArg == "" {
-        fmt.Println("must provide a pattern to search for")
-        return
-    }
+	flag.Parse()
+	if *patternArg == "" {
+		fmt.Println("must provide a pattern to search for")
+		return
+	}
 
-    list, err := locate.ReadIndex(*idxFileArg)
-    if err != nil {
-        fmt.Println("error reading index:", err)
-        return
-    }
-
-    results := locate.SearchIndex(list, *patternArg)
-    for _, r := range results {
-        fmt.Println(r.Path)
-    }
+	n := runtime.NumCPU()
+    runtime.GOMAXPROCS(n)
+	results, err := locate.SearchSplitIndex(*idxFileArg, *patternArg, n)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for _, r := range results {
+		fmt.Println(r.Path)
+	}
 }
