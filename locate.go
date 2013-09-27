@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 )
 
+type index interface {
+}
+
 func predicate(r Record, pattern string) bool {
 	return r.Name == pattern
 }
@@ -44,7 +47,15 @@ func WriteIndex(fpath string, index []Record) error {
 	}
 	defer f.Close()
 
-	return json.NewEncoder(f).Encode(index)
+	enc := json.NewEncoder(f)
+
+	for _, r := range index {
+		if err := enc.Encode(r); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func ReadIndex(fpath string) ([]Record, error) {
@@ -54,10 +65,20 @@ func ReadIndex(fpath string) ([]Record, error) {
 	}
 	defer f.Close()
 
+	dec := json.NewDecoder(f)
 	list := []Record{}
 
-	err = json.NewDecoder(f).Decode(&list)
-	return list, err
+	for {
+		var r Record
+		if err := dec.Decode(&r); err == io.EOF {
+			return list, nil
+		} else if err != nil {
+			return nil, err
+		}
+		list = append(list, r)
+	}
+
+	return list, nil
 }
 
 func SearchIndex(index []Record, pattern string) []Record {
@@ -161,4 +182,69 @@ func SearchSplitIndex(fpath, pattern string, n int) ([]Record, error) {
 	}
 
 	return list, nil
+}
+
+func SplitSearchSingleReader(fpath, pattern string, n int) ([]Record, error) {
+	connector := make(chan Record)
+	filtered := make(chan Record)
+	readerErr := make(chan error)
+	done := make(chan bool)
+
+	reader := func(r io.Reader, next chan<- Record) {
+		dec := json.NewDecoder(r)
+
+		for {
+			var r Record
+			if err := dec.Decode(&r); err == io.EOF {
+				close(next)
+				break
+			} else if err != nil {
+				readerErr <- err
+				close(next)
+			} else {
+				next <- r
+			}
+		}
+	}
+
+	searcher := func(input <-chan Record, output chan<- Record) {
+		for r := range input {
+			if predicate(r, pattern) {
+				output <- r
+			}
+		}
+		done <- true
+	}
+
+	f, err := os.Open(fpath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	go reader(f, connector)
+
+	for i := 0; i < n; i++ {
+		go searcher(connector, filtered)
+	}
+
+	list := []Record{}
+	doneN := 0
+	for {
+		select {
+		case r := <-filtered:
+			list = append(list, r)
+		case <-done:
+			doneN++
+			if doneN >= n {
+				return list, nil
+			}
+		case err := <-readerErr:
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("Unreachable")
 }

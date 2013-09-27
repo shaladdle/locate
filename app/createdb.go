@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"locate"
-	"runtime"
 )
 
 type Record struct {
@@ -21,12 +20,9 @@ var (
 func main() {
 	flag.Parse()
 	fmt.Printf("creating index for \"%s\"..", *rootArg)
-    n := runtime.NumCPU()
-    runtime.GOMAXPROCS(n)
-	if err := locate.WriteSplitIndex(
+	if err := locate.WriteIndex(
 		*idxFileArg,
 		locate.CreateIndex(*rootArg),
-		n,
 	); err != nil {
 		fmt.Println("error:", err)
 	} else {

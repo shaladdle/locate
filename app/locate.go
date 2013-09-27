@@ -26,8 +26,8 @@ func main() {
 	}
 
 	n := runtime.NumCPU()
-    runtime.GOMAXPROCS(n)
-	results, err := locate.SearchSplitIndex(*idxFileArg, *patternArg, n)
+	runtime.GOMAXPROCS(n)
+	results, err := locate.SplitSearchSingleReader(*idxFileArg, *patternArg, n)
 	if err != nil {
 		fmt.Println("error:", err)
 		return
