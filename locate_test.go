@@ -91,16 +91,29 @@ func TestSearch(t *testing.T) {
 	}
 }
 
-func BenchmarkSearch(b *testing.B) {
+const benchWalkerSize = 10000
+
+func BenchmarkSearchSingleThread(b *testing.B) {
+	w := newFakeWalker(benchWalkerSize)
+	idx := newIndex(1, 10*time.Minute, w)
+
+	pattern := w[rand.Intn(benchWalkerSize)].info.name
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		idx.Search(pattern)
+	}
+}
+
+func BenchmarkSearchFullThreads(b *testing.B) {
 	n := runtime.NumCPU()
 	oldn := runtime.GOMAXPROCS(n)
 	defer runtime.GOMAXPROCS(oldn)
 
-	const walkerSize = 100000
-	w := newFakeWalker(walkerSize)
+	w := newFakeWalker(benchWalkerSize)
 	idx := newIndex(n, 10*time.Minute, w)
 
-	pattern := w[rand.Intn(walkerSize)].info.name
+	pattern := w[rand.Intn(benchWalkerSize)].info.name
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
