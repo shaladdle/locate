@@ -1,22 +1,69 @@
 package locate
 
 import (
+	"math/rand"
+	"os"
 	"runtime"
 	"testing"
+	"time"
 )
+
+type fakeFileInfo struct {
+	name  string
+	isdir bool
+}
+
+func (s fakeFileInfo) IsDir() bool        { return s.isdir }
+func (s fakeFileInfo) Name() string       { return s.name }
+func (s fakeFileInfo) ModTime() time.Time { panic("not implemented") }
+func (s fakeFileInfo) Mode() os.FileMode  { panic("not implemented") }
+func (s fakeFileInfo) Size() int64        { panic("not implemented") }
+func (s fakeFileInfo) Sys() interface{}   { panic("not implemented") }
+
+type fakeWalker []struct {
+	path string
+	info fakeFileInfo
+}
+
+func randString(n int) string {
+	length := 10 + rand.Intn(n-10)
+	ret := make([]byte, length)
+
+	rng := int(byte('Z') - byte('A'))
+	for i := 0; i < length; i++ {
+		ret[i] = byte(rand.Intn(rng)) + byte('A')
+	}
+
+	return string(ret)
+}
+
+func newFakeWalker(size int) fakeWalker {
+	elems := make(fakeWalker, size)
+
+	for i := range elems {
+		rs := randString(20)
+		elems[i].path = "/" + rs
+		elems[i].info = fakeFileInfo{rs, false}
+	}
+
+	return elems
+}
+
+func (fw fakeWalker) Walk(f func(string, os.FileInfo, error) error) error {
+	for _, r := range fw {
+		if err := f(r.path, r.info, nil); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 
 var benchIdx []Record
 
 type logger interface {
-    Logf(string, ...interface{})
-    Log(...interface{})
-}
-
-func initBench(l logger) {
-	if benchIdx == nil {
-		benchIdx = CreateIndex(benchRoot)
-        l.Logf("index has %d elements", len(benchIdx))
-	}
+	Logf(string, ...interface{})
+	Log(...interface{})
 }
 
 const (
@@ -25,58 +72,35 @@ const (
 	benchPattern = "cpp"
 )
 
-func bBenchmarkWriteSingle(b *testing.B) {
-	if err := WriteIndex(benchIdxPath, CreateIndex(benchRoot)); err != nil {
-		b.Fatal(err)
-	}
+func TestSearch(t *testing.T) {
+	const walkerSize = 10000
+	w := newFakeWalker(walkerSize)
+	idx := newIndex(8, 10*time.Minute, w)
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		if index, err := ReadIndex(benchIdxPath); err != nil {
-			b.Fatal(err)
-		} else {
-			SearchIndex(index, benchPattern)
-		}
+	pattern := w[rand.Intn(walkerSize)].info.name
+
+	results := idx.Search(pattern)
+	if len(results) < 1 {
+		t.Fatal("Search didn't find any result")
+	} else if results[0].Name != pattern {
+		t.Fatal("Search returned non-matching result")
 	}
 }
 
-func bBenchmarkSearchSplit(b *testing.B) {
+func BenchmarkSearch(b *testing.B) {
+	b.Log("running")
 	n := runtime.NumCPU()
-	oldn := runtime.GOMAXPROCS(n)
-	defer runtime.GOMAXPROCS(oldn)
-	if err := WriteSplitIndex(benchIdxPath, CreateIndex(benchRoot), n); err != nil {
-		b.Fatal(err)
-	}
+	runtime.GOMAXPROCS(n)
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		if _, err := SearchSplitIndex(benchIdxPath, benchPattern, n); err != nil {
-			b.Fatal(err)
-		}
-	}
-}
+	const walkerSize = 10000
+	w := newFakeWalker(walkerSize)
+	idx := newIndex(n, 10*time.Minute, w)
 
-func BenchmarkInMemSearch(b *testing.B) {
-	initBench(b)
+	pattern := w[rand.Intn(walkerSize)].info.name
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		SearchIndex(benchIdx, "15-411")
-	}
-}
-
-func BenchmarkInMemHashSearch(b *testing.B) {
-	idx := NewIndex()
-
-	idx.Create(benchRoot)
-    num := 0
-    for _, v := range idx.(hashIndex) {
-        num += len(v)
-    }
-    b.Logf("index has %d elements", num)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		idx.Search("15-411")
+		b.Log("wat")
+		idx.Search(pattern)
 	}
 }
