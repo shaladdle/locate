@@ -4,7 +4,7 @@ import (
 	"encoding/gob"
 	"flag"
 	"fmt"
-	"locate"
+	"github.com/shaladdle/locate"
 	"net"
 	"runtime"
 	"time"
