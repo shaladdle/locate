@@ -73,9 +73,13 @@ const (
 )
 
 func TestSearch(t *testing.T) {
-	const walkerSize = 10000
+	n := runtime.NumCPU()
+	oldn := runtime.GOMAXPROCS(n)
+	defer runtime.GOMAXPROCS(oldn)
+
+	const walkerSize = 100000
 	w := newFakeWalker(walkerSize)
-	idx := newIndex(8, 10*time.Minute, w)
+	idx := newIndex(n, 10*time.Minute, w)
 
 	pattern := w[rand.Intn(walkerSize)].info.name
 
@@ -88,11 +92,11 @@ func TestSearch(t *testing.T) {
 }
 
 func BenchmarkSearch(b *testing.B) {
-	b.Log("running")
 	n := runtime.NumCPU()
-	runtime.GOMAXPROCS(n)
+	oldn := runtime.GOMAXPROCS(n)
+	defer runtime.GOMAXPROCS(oldn)
 
-	const walkerSize = 10000
+	const walkerSize = 100000
 	w := newFakeWalker(walkerSize)
 	idx := newIndex(n, 10*time.Minute, w)
 
@@ -100,7 +104,6 @@ func BenchmarkSearch(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		b.Log("wat")
 		idx.Search(pattern)
 	}
 }

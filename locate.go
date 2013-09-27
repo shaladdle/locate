@@ -1,6 +1,7 @@
 package locate
 
 import (
+	"container/list"
 	"os"
 	"path/filepath"
 	"time"
@@ -93,6 +94,7 @@ func (p *index) search(pattern string) {
 	for i := 0; i < p.nthreads; i++ {
 		ret = append(ret, (<-results)...)
 	}
+
 	p.searchDone <- searchDoneMsg{pattern, ret}
 }
 
@@ -107,7 +109,28 @@ func (p *index) searchi(pattern string, i int) []Record {
 }
 
 func (p *index) director() {
-	pendingSearches := make(map[string][]searchReqMsg)
+	pendingSearches := make(map[string]*list.List)
+
+	lappend := func(msg searchReqMsg) {
+		_, ok := pendingSearches[msg.pattern]
+		if !ok {
+			pendingSearches[msg.pattern] = list.New()
+		}
+
+		pendingSearches[msg.pattern].PushFront(msg)
+	}
+
+	lreply := func(pattern string) chan []Record {
+		reqs, ok := pendingSearches[pattern]
+		defer reqs.Init()
+		if ok {
+			for e := reqs.Front(); e != nil; e = e.Next() {
+				return e.Value.(searchReqMsg).reply
+			}
+		}
+
+		return nil
+	}
 
 	doIndex := time.NewTicker(p.indexPeriod)
 
@@ -117,13 +140,9 @@ func (p *index) director() {
 		select {
 		case msg := <-p.searchReq:
 			go p.search(msg.pattern)
-			pendingSearches[msg.pattern] = append(pendingSearches[msg.pattern], msg)
+			lappend(msg)
 		case msg := <-p.searchDone:
-			if reqs, ok := pendingSearches[msg.pattern]; ok {
-				for _, req := range reqs {
-					req.reply <- msg.results
-				}
-			}
+			lreply(msg.pattern) <- msg.results
 		case <-doIndex.C:
 			go p.create()
 		case msg := <-p.createDone:
