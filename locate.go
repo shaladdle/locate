@@ -8,7 +8,35 @@ import (
 	"path/filepath"
 )
 
-type index interface {
+type Index interface {
+	Search(pattern string) []Record
+	Create(root string)
+}
+
+func NewIndex() Index {
+	return make(hashIndex)
+}
+
+type hashIndex map[string]Record
+
+func (h hashIndex) Create(root string) {
+	filepath.Walk(root, func(fpath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+
+		h[info.Name()] = Record{info.Name(), fpath, info.IsDir()}
+
+		return nil
+	})
+}
+
+func (h hashIndex) Search(pattern string) []Record {
+	if r, ok := h[pattern]; ok {
+		return []Record{r}
+	}
+
+	return nil
 }
 
 func predicate(r Record, pattern string) bool {

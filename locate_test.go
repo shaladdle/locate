@@ -15,7 +15,7 @@ func initBench() {
 
 const (
 	benchIdxPath = "./index.db"
-	benchRoot    = "/Users/Adam/tmp"
+	benchRoot    = "/"
 	benchPattern = "cpp"
 )
 
@@ -56,5 +56,16 @@ func BenchmarkInMemSearch(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		SearchIndex(benchIdx, "15-411")
+	}
+}
+
+func BenchmarkInMemHashSearch(b *testing.B) {
+	idx := NewIndex()
+
+	idx.Create(benchRoot)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		idx.Search("15-411")
 	}
 }
