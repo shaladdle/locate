@@ -1,21 +1,16 @@
 package main
 
 import (
+	"encoding/gob"
 	"flag"
 	"fmt"
 	"locate"
-	"runtime"
+	"net"
 )
 
-type Record struct {
-	Name  string
-	Path  string
-	IsDir bool
-}
-
 var (
-	patternArg = flag.String("pattern", "", "")
-	idxFileArg = flag.String("idx", "./index.db", "")
+	patternArg  = flag.String("pattern", "", "")
+	hostportArg = flag.String("addr", ":8000", "")
 )
 
 func main() {
@@ -25,14 +20,24 @@ func main() {
 		return
 	}
 
-	n := runtime.NumCPU()
-	runtime.GOMAXPROCS(n)
-	results, err := locate.SplitSearchSingleReader(*idxFileArg, *patternArg, n)
-	if err != nil {
-		fmt.Println("error:", err)
-		return
-	}
-	for _, r := range results {
-		fmt.Println(r.Path)
+	if conn, err := net.Dial("tcp", *hostportArg); err != nil {
+		fmt.Println("error dialing:", err)
+	} else {
+		dec, enc := gob.NewDecoder(conn), gob.NewEncoder(conn)
+
+		if err := enc.Encode(*patternArg); err != nil {
+			fmt.Println("error encoding pattern:", err)
+			return
+		}
+
+		var results []locate.Record
+		if err := dec.Decode(&results); err != nil {
+			fmt.Println("error decoding results:", err)
+			return
+		}
+
+		for _, r := range results {
+			fmt.Println(r.Path)
+		}
 	}
 }

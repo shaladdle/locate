@@ -2,10 +2,16 @@ package locate
 
 import (
 	"container/list"
+	"encoding/gob"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
 )
+
+func init() {
+	gob.Register(Record{})
+}
 
 type Record struct {
 	Path  string
@@ -135,6 +141,7 @@ func (p *index) director() {
 	doIndex := time.NewTicker(p.indexPeriod)
 
 	p.data = <-p.createDone
+	log.Println("index: initialized")
 
 	for {
 		select {
