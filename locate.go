@@ -83,6 +83,11 @@ type index struct {
 }
 
 func (p *index) Search(pattern string) []Record {
+	start := time.Now()
+	defer func() {
+		log.Printf("completed search for '%s' in %v", pattern, time.Since(start))
+	}()
+
 	reply := make(chan []Record)
 	p.searchReq <- searchReqMsg{pattern, reply}
 	return <-reply
@@ -141,7 +146,6 @@ func (p *index) director() {
 	doIndex := time.NewTicker(p.indexPeriod)
 
 	p.data = <-p.createDone
-	log.Println("index: initialized")
 
 	for {
 		select {
@@ -159,6 +163,11 @@ func (p *index) director() {
 }
 
 func (p *index) create() {
+	start := time.Now()
+	defer func() {
+		log.Println("created index in about", time.Since(start))
+	}()
+
 	data := make([][]Record, p.nthreads)
 	i := 0
 
@@ -167,7 +176,8 @@ func (p *index) create() {
 			return nil
 		}
 
-		data[i%p.nthreads] = append(data[i%p.nthreads], Record{fpath, info.Name(), info.IsDir()})
+		r := Record{fpath, info.Name(), info.IsDir()}
+		data[i%p.nthreads] = append(data[i%p.nthreads], r)
 		i++
 
 		return nil

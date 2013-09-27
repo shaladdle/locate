@@ -10,7 +10,12 @@ import (
 	"time"
 )
 
-var hostport = flag.String("addr", ":8000", "")
+var (
+	nthreads = flag.Int("nthreads", 0, "")
+	root     = flag.String("root", "/", "")
+	hostport = flag.String("addr", ":8000", "")
+	period   = flag.Duration("period", 4*time.Hour, "")
+)
 
 func main() {
 	flag.Parse()
@@ -21,10 +26,12 @@ func main() {
 		return
 	}
 
-	n := runtime.NumCPU()
-	runtime.GOMAXPROCS(n)
+	if *nthreads == 0 {
+		*nthreads = runtime.NumCPU()
+		runtime.GOMAXPROCS(*nthreads)
+	}
 
-	index := locate.NewIndex(n, 4*time.Hour, "/")
+	index := locate.NewIndex(*nthreads, *period, *root)
 
 	for {
 		conn, err := l.Accept()

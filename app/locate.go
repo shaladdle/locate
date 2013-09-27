@@ -23,6 +23,7 @@ func main() {
 	if conn, err := net.Dial("tcp", *hostportArg); err != nil {
 		fmt.Println("error dialing:", err)
 	} else {
+		defer conn.Close()
 		dec, enc := gob.NewDecoder(conn), gob.NewEncoder(conn)
 
 		if err := enc.Encode(*patternArg); err != nil {
