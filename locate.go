@@ -17,7 +17,7 @@ func NewIndex() Index {
 	return make(hashIndex)
 }
 
-type hashIndex map[string]Record
+type hashIndex map[string][]Record
 
 func (h hashIndex) Create(root string) {
 	filepath.Walk(root, func(fpath string, info os.FileInfo, err error) error {
@@ -25,7 +25,7 @@ func (h hashIndex) Create(root string) {
 			return nil
 		}
 
-		h[info.Name()] = Record{info.Name(), fpath, info.IsDir()}
+		h[info.Name()] = append(h[info.Name()], Record{info.Name(), fpath, info.IsDir()})
 
 		return nil
 	})
@@ -33,7 +33,7 @@ func (h hashIndex) Create(root string) {
 
 func (h hashIndex) Search(pattern string) []Record {
 	if r, ok := h[pattern]; ok {
-		return []Record{r}
+		return r
 	}
 
 	return nil

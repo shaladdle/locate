@@ -7,9 +7,15 @@ import (
 
 var benchIdx []Record
 
-func initBench() {
+type logger interface {
+    Logf(string, ...interface{})
+    Log(...interface{})
+}
+
+func initBench(l logger) {
 	if benchIdx == nil {
 		benchIdx = CreateIndex(benchRoot)
+        l.Logf("index has %d elements", len(benchIdx))
 	}
 }
 
@@ -51,7 +57,7 @@ func bBenchmarkSearchSplit(b *testing.B) {
 }
 
 func BenchmarkInMemSearch(b *testing.B) {
-	initBench()
+	initBench(b)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -63,6 +69,11 @@ func BenchmarkInMemHashSearch(b *testing.B) {
 	idx := NewIndex()
 
 	idx.Create(benchRoot)
+    num := 0
+    for _, v := range idx.(hashIndex) {
+        num += len(v)
+    }
+    b.Logf("index has %d elements", num)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
