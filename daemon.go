@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -141,15 +142,14 @@ func (d *daemon) handleQuery(msg dmnQueryMsg) {
 	ret := []Result{}
 
 	d.idxMut.RLock()
-	for _, info := range d.index {
-		idxInfo := info.Info()
-		d.idxMut.RUnlock()
-
-		if idxInfo.Name() == msg.query {
-			ret = append(ret, dmnResult(idxInfo.Name()))
+	for fpath, info := range d.index {
+		if !strings.Contains(filepath.Base(fpath), msg.query) {
+			continue
 		}
 
-		d.idxMut.RLock()
+		idxInfo := info.Info()
+
+		ret = append(ret, dmnResult(idxInfo.Name()))
 	}
 	d.idxMut.RUnlock()
 
