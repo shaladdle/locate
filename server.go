@@ -35,7 +35,11 @@ func newServer(root, hostport string, locator Locator) (Server, error) {
 }
 
 func NewServer(root, hostport string) (Server, error) {
-	return newServer(root, hostport, NewDaemon(root))
+    dmn, err := NewDaemon(root)
+    if err != nil {
+        return nil, err
+    }
+	return newServer(root, hostport, dmn)
 }
 
 func (srv *server) handleClient(conn net.Conn) {
