@@ -35,10 +35,10 @@ func newServer(root, hostport string, locator Locator) (Server, error) {
 }
 
 func NewServer(root, hostport string) (Server, error) {
-    dmn, err := NewDaemon(root)
-    if err != nil {
-        return nil, err
-    }
+	dmn, err := NewDaemon(root)
+	if err != nil {
+		return nil, err
+	}
 	return newServer(root, hostport, dmn)
 }
 
